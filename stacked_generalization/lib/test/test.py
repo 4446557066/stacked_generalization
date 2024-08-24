@@ -245,7 +245,79 @@ class TestJoblibedClassfier(unittest.TestCase):
         jrf.fit(X_train, y_train, index)
         prediction2 = jrf.predict(X_train, index)
         assert_allclose(prediction, prediction2)
+import io 
+import os
+from setuptools import setup, find_packages
 
+version = '0.0.6'
+
+install_requires = [
+    'numpy',
+    'scikit-learn',
+    'pandas',
+]
+
+CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
+
+def read(filename):
+    return io.open(os.path.join(CURRENT_DIR, filename), encoding='utf-8').read()
+
+setup(name='stacked_generalization',
+      version=version,
+      description='Machine Learning Stacking Util',
+      keywords = 'Stacking, Machine Learning',
+      author='Ryosuke Fukatani',
+      author_email='nannyakannya@gmail.com',
+      url='https://github.com/stacked_generalization',
+      license="Apache License 2.0",
+      packages=find_packages(),
+      package_data={ 'stacked_generalization' : ['Readme.md'], },
+      long_description='Readme.rst',
+      install_requires=install_requires,
+)
+
+from sklearn import datasets, metrics, preprocessing
+from stacked_generalization.lib.stacking import StackedRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.manifold import TSNE
+
+
+boston = datasets.load_boston()
+X = preprocessing.StandardScaler().fit_transform(boston.data)
+Y = boston.target
+
+X_train = X[:200]
+Y_train = Y[:200]
+X_test = X[200:]
+Y_test = Y[200:]
+
+breg = LinearRegression()
+regs = [RandomForestRegressor(n_estimators=50, random_state=1),
+        GradientBoostingRegressor(n_estimators=25, random_state=1),
+        GradientBoostingRegressor(n_estimators=30, random_state=2),
+        Ridge(),
+        ExtraTreesRegressor(n_estimators=50),
+        TSNE(n_components=2)
+        ]
+
+sr = StackedRegressor(breg,
+                      regs,
+                      n_folds=3,
+                      verbose=0,
+                      oob_score_flag=False)
+sr.fit(X_train, Y_train)
+score = metrics.mean_squared_error(sr.predict(X_test), Y_test)
+print ("MSE of stacked regressor: %f" % score)
+#print ("OOB of stacked regressor: %f" % sr.oob_score_)
+
+gb = GradientBoostingRegressor(n_estimators=25, random_state=1)
+gb.fit(X_train, Y_train)
+score = metrics.mean_squared_error(gb.predict(X_test), Y_test)
+print ("MSE of gradient boosting regressor: %f" % score)
 
 if __name__ == '__main__':
     unittest.main()
+
